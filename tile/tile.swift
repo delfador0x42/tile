@@ -136,13 +136,18 @@ struct TileApp: App {
         KeyboardShortcuts.onKeyUp(for: .rightHalf) { tileRightHalf() }
         KeyboardShortcuts.onKeyUp(for: .topHalf) { tileTopHalf() }
         KeyboardShortcuts.onKeyUp(for: .bottomHalf) { tileBottomHalf() }
+
+        DispatchQueue.main.async {
+            NSApp.deactivate()
+        }
     }
 
     var body: some Scene {
-        WindowGroup {
+        MenuBarExtra {
             ContentView()
+        } label: {
+            Image(systemName: "square.grid.2x2")
         }
-        .windowStyle(.plain)
-        .windowResizability(.contentSize)
+        .menuBarExtraStyle(.window)
     }
 }

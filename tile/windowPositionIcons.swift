@@ -8,8 +8,6 @@ struct WindowPositionIcon: View {
     private let iconWidth: CGFloat = 28
     private let iconHeight: CGFloat = 20
     private let cornerRadius: CGFloat = 4
-    private let innerCornerRadius: CGFloat = 2
-    private let padding: CGFloat = 2
 
     var body: some View {
         ZStack {
@@ -24,7 +22,7 @@ struct WindowPositionIcon: View {
                 .strokeBorder(.tertiary, lineWidth: 1)
 
             GeometryReader { geo in
-                RoundedRectangle(cornerRadius: innerCornerRadius)
+                Rectangle()
                     .fill(
                         LinearGradient(
                             colors: [Color.accentColor, Color.accentColor.opacity(0.8)],
@@ -32,17 +30,13 @@ struct WindowPositionIcon: View {
                             endPoint: .bottomTrailing
                         )
                     )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: innerCornerRadius)
-                            .strokeBorder(.white.opacity(0.3), lineWidth: 0.5)
-                    )
                     .frame(
-                        width: fillWidth * (geo.size.width - padding * 2),
-                        height: fillHeight * (geo.size.height - padding * 2)
+                        width: fillWidth * geo.size.width,
+                        height: fillHeight * geo.size.height
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: alignment)
-                    .padding(padding)
             }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
         }
         .frame(width: iconWidth, height: iconHeight)
     }
