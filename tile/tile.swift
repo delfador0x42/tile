@@ -54,29 +54,75 @@ func tileBottomHalf() {
     AXUIElementSetAttributeValue(win, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!)
 }
 
+struct ShortcutRow: View {
+    let icon: AnyView
+    let label: String
+    let shortcutName: KeyboardShortcuts.Name
 
+    var body: some View {
+        HStack(spacing: 16) {
+            HStack(spacing: 10) {
+                icon
+                Text(label)
+                    .font(.system(.body, design: .rounded, weight: .medium))
+                    .foregroundStyle(.primary)
+            }
+            .frame(width: 120, alignment: .leading)
+
+            KeyboardShortcuts.Recorder(for: shortcutName)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
+                )
+        )
+    }
+}
 
 struct ContentView: View {
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 0) {
             HStack {
-                LeftHalfIcon()
-                KeyboardShortcuts.Recorder(for: .leftHalf)
+                Image(systemName: "square.grid.2x2")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Text("Tile")
+                    .font(.system(.title2, design: .rounded, weight: .bold))
             }
-            HStack {
-                RightHalfIcon()
-                KeyboardShortcuts.Recorder(for: .rightHalf)
-            }
-            HStack {
-                TopHalfIcon()
-                KeyboardShortcuts.Recorder(for: .topHalf)
-            }
-            HStack {
-                BottomHalfIcon()
-                KeyboardShortcuts.Recorder(for: .bottomHalf)
+            .padding(.bottom, 20)
+
+            VStack(spacing: 8) {
+                ShortcutRow(
+                    icon: AnyView(LeftHalfIcon()),
+                    label: "Left",
+                    shortcutName: .leftHalf
+                )
+                ShortcutRow(
+                    icon: AnyView(RightHalfIcon()),
+                    label: "Right",
+                    shortcutName: .rightHalf
+                )
+                ShortcutRow(
+                    icon: AnyView(TopHalfIcon()),
+                    label: "Top",
+                    shortcutName: .topHalf
+                )
+                ShortcutRow(
+                    icon: AnyView(BottomHalfIcon()),
+                    label: "Bottom",
+                    shortcutName: .bottomHalf
+                )
             }
         }
-        .padding()
+        .padding(24)
+        .frame(minWidth: 300)
+        .background(.ultraThinMaterial)
+        .glassEffect()
     }
 }
 
@@ -93,6 +139,10 @@ struct TileApp: App {
     }
 
     var body: some Scene {
-        WindowGroup { ContentView() }
+        WindowGroup {
+            ContentView()
+        }
+        .windowStyle(.plain)
+        .windowResizability(.contentSize)
     }
 }
