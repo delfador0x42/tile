@@ -3,10 +3,10 @@ import KeyboardShortcuts
 import ApplicationServices
 
 extension KeyboardShortcuts.Name {
-    static let leftHalf = Self("leftHalf", default: .init(.u, modifiers: [.control, .shift]))
-    static let rightHalf = Self("rightHalf", default: .init(.i, modifiers: [.control, .shift]))
-    static let topHalf = Self("topHalf", default: .init(.o, modifiers: [.control, .shift]))
-    static let bottomHalf = Self("bottomHalf", default: .init(.p, modifiers: [.control, .shift]))
+    static let leftHalf = Self("leftHalf", default: .init(.leftArrow, modifiers: [.control, .option]))
+    static let rightHalf = Self("rightHalf", default: .init(.rightArrow, modifiers: [.control, .option]))
+    static let topHalf = Self("topHalf", default: .init(.upArrow, modifiers: [.control, .option]))
+    static let bottomHalf = Self("bottomHalf", default: .init(.downArrow, modifiers: [.control, .option]))
 }
 
 func getFocusedWindow() -> AXUIElement? {
@@ -39,7 +39,7 @@ func tileRightHalf() {
 func tileTopHalf() {
     guard let win = getFocusedWindow(), let screen = NSScreen.main else { return }
     let f = screen.visibleFrame
-    var pos = CGPoint(x: f.origin.x, y: f.origin.y + f.height / 2)
+    var pos = CGPoint(x: f.origin.x, y: f.origin.y)
     var size = CGSize(width: f.width, height: f.height / 2)
     AXUIElementSetAttributeValue(win, kAXPositionAttribute as CFString, AXValueCreate(.cgPoint, &pos)!)
     AXUIElementSetAttributeValue(win, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!)
@@ -48,11 +48,13 @@ func tileTopHalf() {
 func tileBottomHalf() {
     guard let win = getFocusedWindow(), let screen = NSScreen.main else { return }
     let f = screen.visibleFrame
-    var pos = CGPoint(x: f.origin.x, y: f.origin.y)
+    var pos = CGPoint(x: f.origin.x, y: f.origin.y + f.height / 2)
     var size = CGSize(width: f.width, height: f.height / 2)
     AXUIElementSetAttributeValue(win, kAXPositionAttribute as CFString, AXValueCreate(.cgPoint, &pos)!)
     AXUIElementSetAttributeValue(win, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!)
 }
+
+
 
 struct ContentView: View {
     var body: some View {
