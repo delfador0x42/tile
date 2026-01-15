@@ -60,33 +60,24 @@ struct ShortcutRow: View {
     let shortcutName: KeyboardShortcuts.Name
 
     var body: some View {
-        HStack(spacing: 16) {
-            HStack(spacing: 10) {
+        HStack() {
+            HStack() {
                 icon
                 Text(label)
                     .font(.system(.body, design: .rounded, weight: .medium))
                     .foregroundStyle(.primary)
             }
-            .frame(width: 120, alignment: .leading)
+            .frame(width: 90, alignment: .leading)
 
             KeyboardShortcuts.Recorder(for: shortcutName)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(.white.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
-                )
-        )
+       
     }
 }
 
 struct ContentView: View {
     var body: some View {
-        VStack(spacing: 0) {
+        VStack() {
             HStack {
                 Image(systemName: "square.grid.2x2")
                     .font(.system(size: 16, weight: .semibold))
@@ -94,9 +85,9 @@ struct ContentView: View {
                 Text("Tile")
                     .font(.system(.title2, design: .rounded, weight: .bold))
             }
-            .padding(.bottom, 20)
+//            .padding(.bottom, 20)
 
-            VStack(spacing: 8) {
+            VStack() {
                 ShortcutRow(
                     icon: AnyView(LeftHalfIcon()),
                     label: "Left",
@@ -120,9 +111,7 @@ struct ContentView: View {
             }
         }
         .padding(24)
-        .frame(minWidth: 300)
-        .background(.ultraThinMaterial)
-        .glassEffect()
+        .frame(minWidth: 150)
     }
 }
 
