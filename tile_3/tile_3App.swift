@@ -424,35 +424,61 @@ struct TilingTest {
     }
 }
 
-// MARK: - Tron Colors
+// MARK: - Tile Icons
 
-private enum Tron {
-    static let cyan = Color(red: 0, green: 0.9, blue: 0.9)
-}
+enum TileIcon {
+    case left, right, top, bottom, full
 
-// MARK: - Styled Menu Row
+    static func image(_ icon: TileIcon, size: CGFloat = 16) -> NSImage {
+        let img = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
+            let inset: CGFloat = 1.5
+            let frame = rect.insetBy(dx: inset, dy: inset)
 
-struct TronMenuItem: View {
-    let icon: String
-    let label: String
-    let shortcut: String
+            // Fill region
+            let fillRect: NSRect
+            switch icon {
+            case .left:
+                fillRect = NSRect(x: frame.minX, y: frame.minY, width: frame.width / 2, height: frame.height)
+            case .right:
+                fillRect = NSRect(x: frame.midX, y: frame.minY, width: frame.width / 2, height: frame.height)
+            case .top:
+                fillRect = NSRect(x: frame.minX, y: frame.midY, width: frame.width, height: frame.height / 2)
+            case .bottom:
+                fillRect = NSRect(x: frame.minX, y: frame.minY, width: frame.width, height: frame.height / 2)
+            case .full:
+                fillRect = frame
+            }
 
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(icon)
-                .font(.system(size: 12, weight: .light, design: .monospaced))
-                .foregroundStyle(Tron.cyan)
-                .frame(width: 16)
+            // Draw filled region
+            NSColor.labelColor.withAlphaComponent(0.25).setFill()
+            NSBezierPath(rect: fillRect).fill()
 
-            Text(label)
-                .font(.system(size: 13, weight: .light))
+            // Draw thin frame
+            NSColor.labelColor.setStroke()
+            let path = NSBezierPath(rect: frame)
+            path.lineWidth = 0.5
+            path.stroke()
 
-            Spacer()
-
-            Text(shortcut)
-                .font(.system(size: 11, weight: .ultraLight, design: .monospaced))
-                .foregroundStyle(.secondary)
+            // Draw divider for halves
+            if icon != .full {
+                let divider = NSBezierPath()
+                switch icon {
+                case .left, .right:
+                    divider.move(to: NSPoint(x: frame.midX, y: frame.minY))
+                    divider.line(to: NSPoint(x: frame.midX, y: frame.maxY))
+                case .top, .bottom:
+                    divider.move(to: NSPoint(x: frame.minX, y: frame.midY))
+                    divider.line(to: NSPoint(x: frame.maxX, y: frame.midY))
+                case .full:
+                    break
+                }
+                divider.lineWidth = 0.5
+                divider.stroke()
+            }
+            return true
         }
+        img.isTemplate = true
+        return img
     }
 }
 
@@ -477,37 +503,40 @@ struct MyMenuBarApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("Tile", systemImage: "square.grid.2x2") {
-            Button { WindowMover.shared.moveWindow(.left) } label: {
-                TronMenuItem(icon: "←", label: "Left Half", shortcut: "⌃⌥←")
+        MenuBarExtra {
+            Button(action: { WindowMover.shared.moveWindow(.left) }) {
+                Label { Text("Left") } icon: { Image(nsImage: TileIcon.image(.left)) }
             }
-            Button { WindowMover.shared.moveWindow(.right) } label: {
-                TronMenuItem(icon: "→", label: "Right Half", shortcut: "⌃⌥→")
+            .keyboardShortcut(.leftArrow, modifiers: [.control, .option])
+
+            Button(action: { WindowMover.shared.moveWindow(.right) }) {
+                Label { Text("Right") } icon: { Image(nsImage: TileIcon.image(.right)) }
             }
-            Button { WindowMover.shared.moveWindow(.up) } label: {
-                TronMenuItem(icon: "↑", label: "Top Half", shortcut: "⌃⌥↑")
+            .keyboardShortcut(.rightArrow, modifiers: [.control, .option])
+
+            Button(action: { WindowMover.shared.moveWindow(.up) }) {
+                Label { Text("Top") } icon: { Image(nsImage: TileIcon.image(.top)) }
             }
-            Button { WindowMover.shared.moveWindow(.down) } label: {
-                TronMenuItem(icon: "↓", label: "Bottom Half", shortcut: "⌃⌥↓")
+            .keyboardShortcut(.upArrow, modifiers: [.control, .option])
+
+            Button(action: { WindowMover.shared.moveWindow(.down) }) {
+                Label { Text("Bottom") } icon: { Image(nsImage: TileIcon.image(.bottom)) }
             }
-            Button { WindowMover.shared.moveWindow(.maximize) } label: {
-                TronMenuItem(icon: "◇", label: "Maximize", shortcut: "⌃⌥↩")
+            .keyboardShortcut(.downArrow, modifiers: [.control, .option])
+
+            Button(action: { WindowMover.shared.moveWindow(.maximize) }) {
+                Label { Text("Full") } icon: { Image(nsImage: TileIcon.image(.full)) }
             }
+            .keyboardShortcut(.return, modifiers: [.control, .option])
 
             Divider()
 
-            Button { TilingTest.runDiagnostics() } label: {
-                TronMenuItem(icon: "⎔", label: "Diagnostics", shortcut: "")
+            Button("Quit") {
+                NSApplication.shared.terminate(nil)
             }
-            Button { TilingTest.runCycleTest(direction: .left, presses: 6) } label: {
-                TronMenuItem(icon: "↻", label: "Cycle Test", shortcut: "")
-            }
-
-            Divider()
-
-            Button { NSApplication.shared.terminate(nil) } label: {
-                TronMenuItem(icon: "⏻", label: "Quit", shortcut: "")
-            }
+            .keyboardShortcut("q")
+        } label: {
+            Image(nsImage: TileIcon.image(.full, size: 18))
         }
         .menuBarExtraStyle(.menu)
     }
