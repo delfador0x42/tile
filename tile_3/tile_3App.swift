@@ -424,6 +424,38 @@ struct TilingTest {
     }
 }
 
+// MARK: - Tron Colors
+
+private enum Tron {
+    static let cyan = Color(red: 0, green: 0.9, blue: 0.9)
+}
+
+// MARK: - Styled Menu Row
+
+struct TronMenuItem: View {
+    let icon: String
+    let label: String
+    let shortcut: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(icon)
+                .font(.system(size: 12, weight: .light, design: .monospaced))
+                .foregroundStyle(Tron.cyan)
+                .frame(width: 16)
+
+            Text(label)
+                .font(.system(size: 13, weight: .light))
+
+            Spacer()
+
+            Text(shortcut)
+                .font(.system(size: 11, weight: .ultraLight, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
 // MARK: - App
 
 @main
@@ -445,49 +477,37 @@ struct MyMenuBarApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("Tile", systemImage: "rectangle.split.2x2") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Window Tiling")
-                    .font(.headline)
-
-                Divider()
-
-                Group {
-                    Button("← Left Half (⌃⌥←)") {
-                        WindowMover.shared.moveWindow(.left)
-                    }
-                    Button("→ Right Half (⌃⌥→)") {
-                        WindowMover.shared.moveWindow(.right)
-                    }
-                    Button("↑ Top Half (⌃⌥↑)") {
-                        WindowMover.shared.moveWindow(.up)
-                    }
-                    Button("↓ Bottom Half (⌃⌥↓)") {
-                        WindowMover.shared.moveWindow(.down)
-                    }
-                    Button("⬜ Maximize (⌃⌥↩)") {
-                        WindowMover.shared.moveWindow(.maximize)
-                    }
-                }
-
-                Divider()
-
-                Group {
-                    Button("Run Diagnostics") {
-                        TilingTest.runDiagnostics()
-                    }
-                    Button("Test LEFT Cycle (6x)") {
-                        TilingTest.runCycleTest(direction: .left, presses: 6)
-                    }
-                }
-
-                Divider()
-
-                Button("Quit") {
-                    NSApplication.shared.terminate(nil)
-                }
+        MenuBarExtra("Tile", systemImage: "square.grid.2x2") {
+            Button { WindowMover.shared.moveWindow(.left) } label: {
+                TronMenuItem(icon: "←", label: "Left Half", shortcut: "⌃⌥←")
             }
-            .padding()
+            Button { WindowMover.shared.moveWindow(.right) } label: {
+                TronMenuItem(icon: "→", label: "Right Half", shortcut: "⌃⌥→")
+            }
+            Button { WindowMover.shared.moveWindow(.up) } label: {
+                TronMenuItem(icon: "↑", label: "Top Half", shortcut: "⌃⌥↑")
+            }
+            Button { WindowMover.shared.moveWindow(.down) } label: {
+                TronMenuItem(icon: "↓", label: "Bottom Half", shortcut: "⌃⌥↓")
+            }
+            Button { WindowMover.shared.moveWindow(.maximize) } label: {
+                TronMenuItem(icon: "◇", label: "Maximize", shortcut: "⌃⌥↩")
+            }
+
+            Divider()
+
+            Button { TilingTest.runDiagnostics() } label: {
+                TronMenuItem(icon: "⎔", label: "Diagnostics", shortcut: "")
+            }
+            Button { TilingTest.runCycleTest(direction: .left, presses: 6) } label: {
+                TronMenuItem(icon: "↻", label: "Cycle Test", shortcut: "")
+            }
+
+            Divider()
+
+            Button { NSApplication.shared.terminate(nil) } label: {
+                TronMenuItem(icon: "⏻", label: "Quit", shortcut: "")
+            }
         }
         .menuBarExtraStyle(.menu)
     }
