@@ -23,11 +23,14 @@ struct WindowPosition: Equatable {
         abs(size.height - other.size.height) < tolerance
     }
 
-    func matchesRect(_ rect: CGRect, tolerance: CGFloat = 10) -> Bool {
-        abs(origin.x - rect.origin.x) < tolerance &&
-        abs(origin.y - rect.origin.y) < tolerance &&
-        abs(size.width - rect.size.width) < tolerance &&
-        abs(size.height - rect.size.height) < tolerance
+    /// Check if a window rect matches this position
+    /// Uses tighter tolerance for origin (20px) and looser tolerance for size (100px)
+    /// because some apps (like Xcode) have minimum sizes and don't resize perfectly
+    func matchesRect(_ rect: CGRect, positionTolerance: CGFloat = 20, sizeTolerance: CGFloat = 100) -> Bool {
+        abs(origin.x - rect.origin.x) < positionTolerance &&
+        abs(origin.y - rect.origin.y) < positionTolerance &&
+        abs(size.width - rect.size.width) < sizeTolerance &&
+        abs(size.height - rect.size.height) < sizeTolerance
     }
 }
 
@@ -36,7 +39,8 @@ struct WindowPosition: Equatable {
 struct ScreenGrid {
     let screen: NSScreen
     let screenIndex: Int
-    let frame: CGRect
+    let frame: CGRect          // Cocoa coordinates (for internal use)
+    let screenFrame: CGRect    // Screen coordinates (for matching with AX API)
 
     // Precomputed positions for this screen
     let leftHalf: WindowPosition
@@ -54,38 +58,55 @@ struct ScreenGrid {
     let bottomRight: WindowPosition
     let full: WindowPosition
 
+    // Convert Cocoa coordinates (origin bottom-left, Y up) to screen coordinates (origin top-left, Y down)
+    private static func screenY(cocoaY: CGFloat, height: CGFloat) -> CGFloat {
+        guard let primaryScreen = NSScreen.screens.first else { return cocoaY }
+        return primaryScreen.frame.height - cocoaY - height
+    }
+
     init(screen: NSScreen, index: Int) {
         self.screen = screen
         self.screenIndex = index
         self.frame = screen.visibleFrame
 
+        // Store frame in screen coordinates for matching
+        let screenY = ScreenGrid.screenY(cocoaY: screen.visibleFrame.origin.y, height: screen.visibleFrame.height)
+        self.screenFrame = CGRect(origin: CGPoint(x: screen.visibleFrame.origin.x, y: screenY),
+                                   size: screen.visibleFrame.size)
+
         let f = frame
         let w = f.width
         let h = f.height
         let x = f.origin.x
-        let y = f.origin.y
+        let cocoaY = f.origin.y
+
+        // Helper to create position with coordinate conversion
+        func pos(_ originX: CGFloat, cocoaOriginY: CGFloat, width: CGFloat, height: CGFloat) -> WindowPosition {
+            let screenOriginY = ScreenGrid.screenY(cocoaY: cocoaOriginY, height: height)
+            return WindowPosition(origin: CGPoint(x: originX, y: screenOriginY), size: CGSize(width: width, height: height), screenIndex: index)
+        }
 
         // Halves
-        leftHalf = WindowPosition(origin: CGPoint(x: x, y: y), size: CGSize(width: w/2, height: h), screenIndex: index)
-        rightHalf = WindowPosition(origin: CGPoint(x: x + w/2, y: y), size: CGSize(width: w/2, height: h), screenIndex: index)
-        topHalf = WindowPosition(origin: CGPoint(x: x, y: y + h/2), size: CGSize(width: w, height: h/2), screenIndex: index)
-        bottomHalf = WindowPosition(origin: CGPoint(x: x, y: y), size: CGSize(width: w, height: h/2), screenIndex: index)
+        leftHalf = pos(x, cocoaOriginY: cocoaY, width: w/2, height: h)
+        rightHalf = pos(x + w/2, cocoaOriginY: cocoaY, width: w/2, height: h)
+        topHalf = pos(x, cocoaOriginY: cocoaY + h/2, width: w, height: h/2)
+        bottomHalf = pos(x, cocoaOriginY: cocoaY, width: w, height: h/2)
 
         // Thirds
-        leftThird = WindowPosition(origin: CGPoint(x: x, y: y), size: CGSize(width: w/3, height: h), screenIndex: index)
-        centerThird = WindowPosition(origin: CGPoint(x: x + w/3, y: y), size: CGSize(width: w/3, height: h), screenIndex: index)
-        rightThird = WindowPosition(origin: CGPoint(x: x + 2*w/3, y: y), size: CGSize(width: w/3, height: h), screenIndex: index)
-        leftTwoThirds = WindowPosition(origin: CGPoint(x: x, y: y), size: CGSize(width: 2*w/3, height: h), screenIndex: index)
-        rightTwoThirds = WindowPosition(origin: CGPoint(x: x + w/3, y: y), size: CGSize(width: 2*w/3, height: h), screenIndex: index)
+        leftThird = pos(x, cocoaOriginY: cocoaY, width: w/3, height: h)
+        centerThird = pos(x + w/3, cocoaOriginY: cocoaY, width: w/3, height: h)
+        rightThird = pos(x + 2*w/3, cocoaOriginY: cocoaY, width: w/3, height: h)
+        leftTwoThirds = pos(x, cocoaOriginY: cocoaY, width: 2*w/3, height: h)
+        rightTwoThirds = pos(x + w/3, cocoaOriginY: cocoaY, width: 2*w/3, height: h)
 
         // Quarters
-        topLeft = WindowPosition(origin: CGPoint(x: x, y: y + h/2), size: CGSize(width: w/2, height: h/2), screenIndex: index)
-        topRight = WindowPosition(origin: CGPoint(x: x + w/2, y: y + h/2), size: CGSize(width: w/2, height: h/2), screenIndex: index)
-        bottomLeft = WindowPosition(origin: CGPoint(x: x, y: y), size: CGSize(width: w/2, height: h/2), screenIndex: index)
-        bottomRight = WindowPosition(origin: CGPoint(x: x + w/2, y: y), size: CGSize(width: w/2, height: h/2), screenIndex: index)
+        topLeft = pos(x, cocoaOriginY: cocoaY + h/2, width: w/2, height: h/2)
+        topRight = pos(x + w/2, cocoaOriginY: cocoaY + h/2, width: w/2, height: h/2)
+        bottomLeft = pos(x, cocoaOriginY: cocoaY, width: w/2, height: h/2)
+        bottomRight = pos(x + w/2, cocoaOriginY: cocoaY, width: w/2, height: h/2)
 
         // Full
-        full = WindowPosition(origin: CGPoint(x: x, y: y), size: CGSize(width: w, height: h), screenIndex: index)
+        full = pos(x, cocoaOriginY: cocoaY, width: w, height: h)
     }
 }
 
@@ -126,13 +147,13 @@ class WindowMover {
             let positions = grids.flatMap { [$0.leftHalf, $0.rightHalf] }
             return positions.sorted { $0.origin.x < $1.origin.x }
         case .up:
-            // All halves sorted by Y descending (topmost first in Cocoa coords)
-            let positions = grids.flatMap { [$0.topHalf, $0.bottomHalf] }
-            return positions.sorted { $0.origin.y > $1.origin.y }
-        case .down:
-            // All halves sorted by Y ascending (bottommost first)
+            // All halves sorted by Y ascending (topmost first in screen coords where low Y = top)
             let positions = grids.flatMap { [$0.topHalf, $0.bottomHalf] }
             return positions.sorted { $0.origin.y < $1.origin.y }
+        case .down:
+            // All halves sorted by Y descending (bottommost first in screen coords where high Y = bottom)
+            let positions = grids.flatMap { [$0.topHalf, $0.bottomHalf] }
+            return positions.sorted { $0.origin.y > $1.origin.y }
         case .maximize:
             return grids.sorted { $0.frame.origin.x < $1.frame.origin.x }.map { $0.full }
         }
@@ -161,8 +182,8 @@ class WindowMover {
         // Find which screen the window is currently on
         let windowCenter = CGPoint(x: rect.midX, y: rect.midY)
 
-        // Find the grid that contains this window
-        if let currentGrid = grids.first(where: { $0.frame.contains(windowCenter) }) {
+        // Find the grid that contains this window (using screen coordinates)
+        if let currentGrid = grids.first(where: { $0.screenFrame.contains(windowCenter) }) {
             // Return the primary position for this direction on the current screen
             switch direction {
             case .left:
@@ -223,6 +244,70 @@ func getWindowRect(_ window: AXUIElement) -> CGRect? {
     return CGRect(origin: position, size: size)
 }
 
+// MARK: - Debug / Test
+
+struct TilingTest {
+    static func runDiagnostics() {
+        print("\n" + String(repeating: "=", count: 60))
+        print("WINDOW TILING DIAGNOSTICS")
+        print(String(repeating: "=", count: 60))
+
+        let mover = WindowMover.shared
+        mover.rebuildGrids()
+
+        // Screen info
+        print("\nScreens (\(NSScreen.screens.count) total):")
+        for (i, screen) in NSScreen.screens.enumerated() {
+            print("  [\(i)] frame: \(screen.frame)")
+            print("       visible: \(screen.visibleFrame)")
+        }
+
+        // Position info
+        print("\nLEFT positions (sorted by X descending - rightmost first):")
+        let leftPositions = mover.positionsForDirection(.left)
+        for (i, pos) in leftPositions.enumerated() {
+            print("  [\(i)] x=\(Int(pos.origin.x)), y=\(Int(pos.origin.y)), " +
+                  "size=\(Int(pos.size.width))x\(Int(pos.size.height)), screen=\(pos.screenIndex)")
+        }
+
+        // Current window info
+        if let window = getFocusedWindow(), let rect = getWindowRect(window) {
+            print("\nFocused window: x=\(Int(rect.origin.x)), y=\(Int(rect.origin.y)), " +
+                  "size=\(Int(rect.size.width))x\(Int(rect.size.height))")
+
+            if let matchIndex = leftPositions.firstIndex(where: { $0.matchesRect(rect) }) {
+                print("  Matches position[\(matchIndex)]")
+            } else {
+                print("  No position match (will snap to primary position on next move)")
+            }
+        } else {
+            print("\nNo focused window or unable to get window rect")
+        }
+
+        print(String(repeating: "=", count: 60) + "\n")
+    }
+
+    static func runCycleTest(direction: Direction, presses: Int = 6) {
+        let mover = WindowMover.shared
+        let positions = mover.positionsForDirection(direction)
+
+        print("\n--- Cycle Test: \(direction) (\(presses) presses) ---")
+
+        for i in 1...presses {
+            mover.moveWindow(direction)
+
+            // Small delay to let the window settle
+            usleep(100_000) // 100ms
+
+            if let window = getFocusedWindow(), let rect = getWindowRect(window) {
+                let matchIndex = positions.firstIndex(where: { $0.matchesRect(rect) })
+                let matchStr = matchIndex.map { "position[\($0)]" } ?? "no match"
+                print("  Press \(i): x=\(Int(rect.origin.x)) -> \(matchStr)")
+            }
+        }
+    }
+}
+
 // MARK: - App
 
 @main
@@ -274,6 +359,17 @@ struct MyMenuBarApp: App {
                     }
                     Button("⬜ Maximize (⌃⌥↩)") {
                         WindowMover.shared.moveWindow(.maximize)
+                    }
+                }
+
+                Divider()
+
+                Group {
+                    Button("Run Diagnostics") {
+                        TilingTest.runDiagnostics()
+                    }
+                    Button("Test LEFT Cycle (6x)") {
+                        TilingTest.runCycleTest(direction: .left, presses: 6)
                     }
                 }
 
