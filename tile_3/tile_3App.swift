@@ -9,6 +9,12 @@ extension KeyboardShortcuts.Name {
     static let maximize = Self("maximize", default: .init(.return, modifiers: [.control, .option]))
 }
 
+// MARK: - Direction
+
+enum Direction {
+    case left, right, up, down, maximize
+}
+
 // MARK: - Window Position
 
 struct WindowPosition: Equatable {
@@ -110,12 +116,22 @@ struct ScreenGrid {
     }
 }
 
-// MARK: - Window Mover Factory
+// MARK: - Window Mover
 
-class WindowMover {
+final class WindowMover {
     static let shared = WindowMover()
 
     private var grids: [ScreenGrid] = []
+
+    /// Cached sorted positions per direction (computed once in rebuildGrids)
+    private struct PositionCache {
+        var left: [WindowPosition] = []
+        var right: [WindowPosition] = []
+        var up: [WindowPosition] = []
+        var down: [WindowPosition] = []
+        var maximize: [WindowPosition] = []
+    }
+    private var cache = PositionCache()
 
     /// Track last applied position for each window: [windowID: (direction, positionIndex)]
     private var windowHistory: [String: (direction: Direction, index: Int)] = [:]
@@ -134,55 +150,58 @@ class WindowMover {
 
     @objc func rebuildGrids() {
         grids = NSScreen.screens.enumerated().map { ScreenGrid(screen: $1, index: $0) }
-        // Clear history when screens change since positions are invalidated
         windowHistory.removeAll()
+
+        // Precompute and cache sorted position arrays
+        let halves = grids.flatMap { [$0.leftHalf, $0.rightHalf] }
+        cache.left  = halves.sorted { $0.origin.x > $1.origin.x }
+        cache.right = halves.sorted { $0.origin.x < $1.origin.x }
+
+        let verticals = grids.flatMap { [$0.topHalf, $0.bottomHalf] }
+        cache.up   = verticals.sorted { $0.origin.y < $1.origin.y }
+        cache.down = verticals.sorted { $0.origin.y > $1.origin.y }
+
+        cache.maximize = grids.sorted { $0.frame.origin.x < $1.frame.origin.x }.map { $0.full }
     }
 
-    /// Get a unique identifier for a window (bundleID + window title)
-    private func getWindowIdentifier(_ window: AXUIElement) -> String? {
-        // Get the frontmost app via NSWorkspace (matches getFocusedWindow approach)
-        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-            return nil
+    /// Get a unique identifier for a window using pid + window number (stable)
+    /// Falls back to title if window number unavailable
+    private func getWindowIdentifier(_ window: AXUIElement, pid: pid_t) -> String {
+        // Prefer window number (stable across title changes)
+        // Note: kAXWindowNumberAttribute is private, use raw string "AXWindowNumber"
+        if let windowNum = copyAXInt(window, attr: "AXWindowNumber") {
+            return "\(pid):\(windowNum)"
         }
-
-        let bundleID = frontApp.bundleIdentifier ?? "unknown"
-
-        // Get window title for uniqueness (in case app has multiple windows)
-        var titleRef: AnyObject?
-        AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef)
-        let title = (titleRef as? String) ?? "untitled"
-
-        return "\(bundleID):\(title)"
+        // Fallback to title
+        let title = copyAXString(window, attr: kAXTitleAttribute as String) ?? "untitled"
+        return "\(pid):\(title)"
     }
 
-    // Get all positions in a direction across all monitors, sorted by spatial position
+    private func copyAXInt(_ element: AXUIElement, attr: String) -> Int? {
+        var ref: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, attr as CFString, &ref) == .success else { return nil }
+        return ref as? Int
+    }
+
+    private func copyAXString(_ element: AXUIElement, attr: String) -> String? {
+        var ref: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, attr as CFString, &ref) == .success else { return nil }
+        return ref as? String
+    }
+
+    /// Get cached positions for a direction (precomputed in rebuildGrids)
     func positionsForDirection(_ direction: Direction) -> [WindowPosition] {
         switch direction {
-        case .left:
-            // All halves sorted by X descending (rightmost first → leftmost last)
-            // Pressing LEFT cycles: high X → low X → wrap to high X
-            let positions = grids.flatMap { [$0.leftHalf, $0.rightHalf] }
-            return positions.sorted { $0.origin.x > $1.origin.x }
-        case .right:
-            // All halves sorted by X ascending (leftmost first → rightmost last)
-            // Pressing RIGHT cycles: low X → high X → wrap to low X
-            let positions = grids.flatMap { [$0.leftHalf, $0.rightHalf] }
-            return positions.sorted { $0.origin.x < $1.origin.x }
-        case .up:
-            // All halves sorted by Y ascending (topmost first in screen coords where low Y = top)
-            let positions = grids.flatMap { [$0.topHalf, $0.bottomHalf] }
-            return positions.sorted { $0.origin.y < $1.origin.y }
-        case .down:
-            // All halves sorted by Y descending (bottommost first in screen coords where high Y = bottom)
-            let positions = grids.flatMap { [$0.topHalf, $0.bottomHalf] }
-            return positions.sorted { $0.origin.y > $1.origin.y }
-        case .maximize:
-            return grids.sorted { $0.frame.origin.x < $1.frame.origin.x }.map { $0.full }
+        case .left:     return cache.left
+        case .right:    return cache.right
+        case .up:       return cache.up
+        case .down:     return cache.down
+        case .maximize: return cache.maximize
         }
     }
 
     func moveWindow(_ direction: Direction) {
-        guard let window = getFocusedWindow() else {
+        guard let (window, pid) = getFocusedWindow() else {
             print("[WindowMover] ERROR: No focused window found")
             return
         }
@@ -192,10 +211,7 @@ class WindowMover {
             return
         }
 
-        guard let windowID = getWindowIdentifier(window) else {
-            print("[WindowMover] ERROR: Could not get window identifier")
-            return
-        }
+        let windowID = getWindowIdentifier(window, pid: pid)
 
         let positions = positionsForDirection(direction)
         guard !positions.isEmpty else {
@@ -262,8 +278,14 @@ class WindowMover {
         var pos = position.origin
         var size = position.size
 
-        let posResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, AXValueCreate(.cgPoint, &pos)!)
-        let sizeResult = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!)
+        guard let posVal = AXValueCreate(.cgPoint, &pos),
+              let sizeVal = AXValueCreate(.cgSize, &size) else {
+            print("[WindowMover] ERROR: Failed to create AXValue for position/size")
+            return false
+        }
+
+        let posResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posVal)
+        let sizeResult = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeVal)
 
         if posResult != .success {
             print("[WindowMover] Failed to set position: \(posResult.rawValue)")
@@ -276,13 +298,10 @@ class WindowMover {
     }
 }
 
-enum Direction {
-    case left, right, up, down, maximize
-}
-
 // MARK: - Accessibility Helpers
 
-func getFocusedWindow() -> AXUIElement? {
+/// Returns the focused window and its pid, or nil if unavailable
+func getFocusedWindow() -> (window: AXUIElement, pid: pid_t)? {
     // Use NSWorkspace to get frontmost app (more reliable than AX system-wide)
     guard let frontApp = NSWorkspace.shared.frontmostApplication else {
         print("[AX] No frontmost application")
@@ -304,8 +323,9 @@ func getFocusedWindow() -> AXUIElement? {
     // Try focused window first
     var window: AnyObject?
     let windowResult = AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &window)
-    if windowResult == .success {
-        return window as! AXUIElement
+    if windowResult == .success, let axWindow = window {
+        // swiftlint:disable:next force_cast
+        return (axWindow as! AXUIElement, pid)
     }
 
     print("[AX] App '\(appName)' (\(bundleID)) - kAXFocusedWindowAttribute failed: \(windowResult.rawValue)")
@@ -313,9 +333,9 @@ func getFocusedWindow() -> AXUIElement? {
     // Fallback: try getting all windows
     var windows: AnyObject?
     let windowsResult = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
-    if windowsResult == .success, let windowList = windows as? [AXUIElement], !windowList.isEmpty {
+    if windowsResult == .success, let windowList = windows as? [AXUIElement], let first = windowList.first {
         print("[AX] Found \(windowList.count) windows via kAXWindowsAttribute, using first")
-        return windowList.first
+        return (first, pid)
     }
 
     print("[AX] kAXWindowsAttribute also failed: \(windowsResult.rawValue)")
@@ -367,7 +387,7 @@ struct TilingTest {
         }
 
         // Current window info
-        if let window = getFocusedWindow(), let rect = getWindowRect(window) {
+        if let (window, _) = getFocusedWindow(), let rect = getWindowRect(window) {
             print("\nFocused window: x=\(Int(rect.origin.x)), y=\(Int(rect.origin.y)), " +
                   "size=\(Int(rect.size.width))x\(Int(rect.size.height))")
 
@@ -395,7 +415,7 @@ struct TilingTest {
             // Small delay to let the window settle
             usleep(100_000) // 100ms
 
-            if let window = getFocusedWindow(), let rect = getWindowRect(window) {
+            if let (window, _) = getFocusedWindow(), let rect = getWindowRect(window) {
                 let matchIndex = positions.firstIndex(where: { $0.matchesRect(rect) })
                 let matchStr = matchIndex.map { "position[\($0)]" } ?? "no match"
                 print("  Press \(i): x=\(Int(rect.origin.x)) -> \(matchStr)")
@@ -408,28 +428,20 @@ struct TilingTest {
 
 @main
 struct MyMenuBarApp: App {
-    @State private var windowMover = WindowMover.shared
-
     init() {
         setupShortcuts()
     }
 
+    private func bind(_ name: KeyboardShortcuts.Name, _ direction: Direction) {
+        KeyboardShortcuts.onKeyUp(for: name) { WindowMover.shared.moveWindow(direction) }
+    }
+
     func setupShortcuts() {
-        KeyboardShortcuts.onKeyUp(for: .leftHalf) {
-            WindowMover.shared.moveWindow(.left)
-        }
-        KeyboardShortcuts.onKeyUp(for: .rightHalf) {
-            WindowMover.shared.moveWindow(.right)
-        }
-        KeyboardShortcuts.onKeyUp(for: .topHalf) {
-            WindowMover.shared.moveWindow(.up)
-        }
-        KeyboardShortcuts.onKeyUp(for: .bottomHalf) {
-            WindowMover.shared.moveWindow(.down)
-        }
-        KeyboardShortcuts.onKeyUp(for: .maximize) {
-            WindowMover.shared.moveWindow(.maximize)
-        }
+        bind(.leftHalf, .left)
+        bind(.rightHalf, .right)
+        bind(.topHalf, .up)
+        bind(.bottomHalf, .down)
+        bind(.maximize, .maximize)
     }
 
     var body: some Scene {
