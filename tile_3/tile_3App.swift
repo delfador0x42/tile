@@ -112,32 +112,29 @@ class WindowMover {
         grids = NSScreen.screens.enumerated().map { ScreenGrid(screen: $1, index: $0) }
     }
 
-    // Get all positions in a direction across all monitors, ordered left-to-right or top-to-bottom
+    // Get all positions in a direction across all monitors, sorted by spatial position
     func positionsForDirection(_ direction: Direction) -> [WindowPosition] {
-        let sortedGrids: [ScreenGrid]
-
-        switch direction {
-        case .left, .right:
-            sortedGrids = grids.sorted { $0.frame.origin.x < $1.frame.origin.x }
-        case .up, .down:
-            sortedGrids = grids.sorted { $0.frame.origin.y > $1.frame.origin.y }
-        case .maximize:
-            sortedGrids = grids.sorted { $0.frame.origin.x < $1.frame.origin.x }
-        }
-
         switch direction {
         case .left:
-            // Left positions: leftThird -> leftHalf -> leftTwoThirds for each screen (left to right)
-            return sortedGrids.flatMap { [$0.leftHalf, $0.leftThird, $0.leftTwoThirds] }
+            // All halves sorted by X descending (rightmost first → leftmost last)
+            // Pressing LEFT cycles: high X → low X → wrap to high X
+            let positions = grids.flatMap { [$0.leftHalf, $0.rightHalf] }
+            return positions.sorted { $0.origin.x > $1.origin.x }
         case .right:
-            // Right positions: rightThird -> rightHalf -> rightTwoThirds for each screen (left to right)
-            return sortedGrids.flatMap { [$0.rightHalf, $0.rightThird, $0.rightTwoThirds] }
+            // All halves sorted by X ascending (leftmost first → rightmost last)
+            // Pressing RIGHT cycles: low X → high X → wrap to low X
+            let positions = grids.flatMap { [$0.leftHalf, $0.rightHalf] }
+            return positions.sorted { $0.origin.x < $1.origin.x }
         case .up:
-            return sortedGrids.flatMap { [$0.topHalf] }
+            // All halves sorted by Y descending (topmost first in Cocoa coords)
+            let positions = grids.flatMap { [$0.topHalf, $0.bottomHalf] }
+            return positions.sorted { $0.origin.y > $1.origin.y }
         case .down:
-            return sortedGrids.flatMap { [$0.bottomHalf] }
+            // All halves sorted by Y ascending (bottommost first)
+            let positions = grids.flatMap { [$0.topHalf, $0.bottomHalf] }
+            return positions.sorted { $0.origin.y < $1.origin.y }
         case .maximize:
-            return sortedGrids.map { $0.full }
+            return grids.sorted { $0.frame.origin.x < $1.frame.origin.x }.map { $0.full }
         }
     }
 
@@ -166,9 +163,18 @@ class WindowMover {
 
         // Find the grid that contains this window
         if let currentGrid = grids.first(where: { $0.frame.contains(windowCenter) }) {
-            // Return the first position on this screen
-            if let pos = positions.first(where: { $0.screenIndex == currentGrid.screenIndex }) {
-                return pos
+            // Return the primary position for this direction on the current screen
+            switch direction {
+            case .left:
+                return currentGrid.leftHalf
+            case .right:
+                return currentGrid.rightHalf
+            case .up:
+                return currentGrid.topHalf
+            case .down:
+                return currentGrid.bottomHalf
+            case .maximize:
+                return currentGrid.full
             }
         }
 
