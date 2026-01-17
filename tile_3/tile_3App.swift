@@ -117,6 +117,9 @@ class WindowMover {
 
     private var grids: [ScreenGrid] = []
 
+    /// Track last applied position for each window: [windowID: (direction, positionIndex)]
+    private var windowHistory: [String: (direction: Direction, index: Int)] = [:]
+
     init() {
         rebuildGrids()
 
@@ -131,6 +134,25 @@ class WindowMover {
 
     @objc func rebuildGrids() {
         grids = NSScreen.screens.enumerated().map { ScreenGrid(screen: $1, index: $0) }
+        // Clear history when screens change since positions are invalidated
+        windowHistory.removeAll()
+    }
+
+    /// Get a unique identifier for a window (bundleID + window title)
+    private func getWindowIdentifier(_ window: AXUIElement) -> String? {
+        // Get the frontmost app via NSWorkspace (matches getFocusedWindow approach)
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else {
+            return nil
+        }
+
+        let bundleID = frontApp.bundleIdentifier ?? "unknown"
+
+        // Get window title for uniqueness (in case app has multiple windows)
+        var titleRef: AnyObject?
+        AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleRef)
+        let title = (titleRef as? String) ?? "untitled"
+
+        return "\(bundleID):\(title)"
     }
 
     // Get all positions in a direction across all monitors, sorted by spatial position
@@ -160,54 +182,97 @@ class WindowMover {
     }
 
     func moveWindow(_ direction: Direction) {
-        guard let window = getFocusedWindow() else { return }
-        guard let currentRect = getWindowRect(window) else { return }
+        guard let window = getFocusedWindow() else {
+            print("[WindowMover] ERROR: No focused window found")
+            return
+        }
+
+        guard let currentRect = getWindowRect(window) else {
+            print("[WindowMover] ERROR: Could not get window rect")
+            return
+        }
+
+        guard let windowID = getWindowIdentifier(window) else {
+            print("[WindowMover] ERROR: Could not get window identifier")
+            return
+        }
 
         let positions = positionsForDirection(direction)
-        guard !positions.isEmpty else { return }
+        guard !positions.isEmpty else {
+            print("[WindowMover] ERROR: No positions available")
+            return
+        }
 
-        // Find if current position matches any in the sequence
-        if let matchIndex = positions.firstIndex(where: { $0.matchesRect(currentRect) }) {
-            // Already at a position in sequence - move to next (with wrap)
-            let nextIndex = (matchIndex + 1) % positions.count
-            applyPosition(positions[nextIndex], to: window)
+        var targetIndex: Int
+
+        // Check if we have history for this window AND same direction
+        if let last = windowHistory[windowID], last.direction == direction {
+            // Same direction pressed again → cycle to next position
+            targetIndex = (last.index + 1) % positions.count
+            print("[WindowMover] \(windowID): cycling \(direction) → position[\(targetIndex)]")
         } else {
-            // Not at any position - find the best starting position
-            let targetPosition = findBestStartingPosition(for: currentRect, in: positions, direction: direction)
-            applyPosition(targetPosition, to: window)
+            // Different direction or first time → find primary position for current screen
+            targetIndex = findPrimaryPositionIndex(for: currentRect, in: positions, direction: direction)
+            print("[WindowMover] \(windowID): starting \(direction) → position[\(targetIndex)]")
+        }
+
+        // Update history
+        windowHistory[windowID] = (direction, targetIndex)
+
+        // Apply the position
+        let result = applyPosition(positions[targetIndex], to: window)
+        if !result {
+            print("[WindowMover] WARNING: applyPosition may have failed for \(windowID)")
         }
     }
 
-    private func findBestStartingPosition(for rect: CGRect, in positions: [WindowPosition], direction: Direction) -> WindowPosition {
+    private func findPrimaryPositionIndex(for rect: CGRect, in positions: [WindowPosition], direction: Direction) -> Int {
         // Find which screen the window is currently on
         let windowCenter = CGPoint(x: rect.midX, y: rect.midY)
 
         // Find the grid that contains this window (using screen coordinates)
         if let currentGrid = grids.first(where: { $0.screenFrame.contains(windowCenter) }) {
-            // Return the primary position for this direction on the current screen
+            // Find the primary position for this direction on the current screen
+            let primaryPosition: WindowPosition
             switch direction {
             case .left:
-                return currentGrid.leftHalf
+                primaryPosition = currentGrid.leftHalf
             case .right:
-                return currentGrid.rightHalf
+                primaryPosition = currentGrid.rightHalf
             case .up:
-                return currentGrid.topHalf
+                primaryPosition = currentGrid.topHalf
             case .down:
-                return currentGrid.bottomHalf
+                primaryPosition = currentGrid.bottomHalf
             case .maximize:
-                return currentGrid.full
+                primaryPosition = currentGrid.full
+            }
+
+            // Find the index of this position in the sorted positions array
+            if let index = positions.firstIndex(where: { $0.origin == primaryPosition.origin && $0.size == primaryPosition.size }) {
+                return index
             }
         }
 
         // Fallback to first position
-        return positions[0]
+        return 0
     }
 
-    private func applyPosition(_ position: WindowPosition, to window: AXUIElement) {
+    @discardableResult
+    private func applyPosition(_ position: WindowPosition, to window: AXUIElement) -> Bool {
         var pos = position.origin
         var size = position.size
-        AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, AXValueCreate(.cgPoint, &pos)!)
-        AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!)
+
+        let posResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, AXValueCreate(.cgPoint, &pos)!)
+        let sizeResult = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, AXValueCreate(.cgSize, &size)!)
+
+        if posResult != .success {
+            print("[WindowMover] Failed to set position: \(posResult.rawValue)")
+        }
+        if sizeResult != .success {
+            print("[WindowMover] Failed to set size: \(sizeResult.rawValue)")
+        }
+
+        return posResult == .success && sizeResult == .success
     }
 }
 
@@ -218,12 +283,43 @@ enum Direction {
 // MARK: - Accessibility Helpers
 
 func getFocusedWindow() -> AXUIElement? {
-    let systemWide = AXUIElementCreateSystemWide()
-    var app: AnyObject?
-    guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &app) == .success else { return nil }
+    // Use NSWorkspace to get frontmost app (more reliable than AX system-wide)
+    guard let frontApp = NSWorkspace.shared.frontmostApplication else {
+        print("[AX] No frontmost application")
+        return nil
+    }
+
+    let pid = frontApp.processIdentifier
+    let appName = frontApp.localizedName ?? "unknown"
+    let bundleID = frontApp.bundleIdentifier ?? "unknown"
+
+    // Skip if our own app is frontmost (shouldn't happen but just in case)
+    if bundleID == Bundle.main.bundleIdentifier {
+        print("[AX] Our app is frontmost, skipping")
+        return nil
+    }
+
+    let axApp = AXUIElementCreateApplication(pid)
+
+    // Try focused window first
     var window: AnyObject?
-    guard AXUIElementCopyAttributeValue(app as! AXUIElement, kAXFocusedWindowAttribute as CFString, &window) == .success else { return nil }
-    return window as! AXUIElement
+    let windowResult = AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &window)
+    if windowResult == .success {
+        return window as! AXUIElement
+    }
+
+    print("[AX] App '\(appName)' (\(bundleID)) - kAXFocusedWindowAttribute failed: \(windowResult.rawValue)")
+
+    // Fallback: try getting all windows
+    var windows: AnyObject?
+    let windowsResult = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
+    if windowsResult == .success, let windowList = windows as? [AXUIElement], !windowList.isEmpty {
+        print("[AX] Found \(windowList.count) windows via kAXWindowsAttribute, using first")
+        return windowList.first
+    }
+
+    print("[AX] kAXWindowsAttribute also failed: \(windowsResult.rawValue)")
+    return nil
 }
 
 func getWindowRect(_ window: AXUIElement) -> CGRect? {
