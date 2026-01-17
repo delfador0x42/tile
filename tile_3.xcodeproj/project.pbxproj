@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3F3465092F1B75780091B148 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 3F3465082F1B75780091B148 /* KeyboardShortcuts */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		3F3464F72F1B74D70091B148 /* tile_3.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tile_3.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3F3465092F1B75780091B148 /* KeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = tile_3;
 			packageProductDependencies = (
+				3F3465082F1B75780091B148 /* KeyboardShortcuts */,
 			);
 			productName = tile_3;
 			productReference = 3F3464F72F1B74D70091B148 /* tile_3.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 3F3464EE2F1B74D70091B148;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				3F3465072F1B75780091B148 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3F3464F82F1B74D70091B148 /* Products */;
 			projectDirPath = "";
@@ -331,6 +340,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		3F3465072F1B75780091B148 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/delfador0x42/KeyboardShortcuts.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3F3465082F1B75780091B148 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3F3465072F1B75780091B148 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 3F3464EF2F1B74D70091B148 /* Project object */;
 }
