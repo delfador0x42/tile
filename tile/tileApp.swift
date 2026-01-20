@@ -486,6 +486,7 @@ enum TileIcon {
 
 struct AccessibilityAuthorizationView: View {
     @Environment(\.dismiss) private var dismiss
+    private var accessibilityState = AccessibilityState.shared
 
     private let accessibilitySettingsURL = URL(
         string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
@@ -512,23 +513,20 @@ struct AccessibilityAuthorizationView: View {
 
             Button("Open System Settings") {
                 NSWorkspace.shared.open(accessibilitySettingsURL)
-//                if !AXIsProcessTrusted() {
-//                            AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary)
-//                            return
-//                }
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
             .keyboardShortcut(.defaultAction)
-
-//            Text("Enable Tile.app")
-//                .font(.body)
         }
         .padding(20)
         .frame(width: 350)
+        .onChange(of: accessibilityState.hasAccess) { _, hasAccess in
+            if hasAccess {
+                dismiss()
+            }
+        }
         .onAppear {
-            // Dismiss immediately if we already have permissions
-            if AXIsProcessTrusted() {
+            if accessibilityState.hasAccess {
                 dismiss()
             }
         }
@@ -548,6 +546,83 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+}
+
+// MARK: - Accessibility State
+
+@Observable
+final class AccessibilityState {
+    static let shared = AccessibilityState()
+
+    var hasAccess = AXIsProcessTrusted()
+
+    private init() {
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                let newAccess = AXIsProcessTrusted()
+                if self?.hasAccess != newAccess {
+                    self?.hasAccess = newAccess
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Menu Content
+
+struct MenuContentView: View {
+    private var accessibilityState = AccessibilityState.shared
+
+    var body: some View {
+        let hasAccess = accessibilityState.hasAccess
+
+        Button(action: { WindowMover.shared.moveWindow(.left) }) {
+            Label { Text("Left") } icon: { Image(nsImage: TileIcon.image(.left)) }
+        }
+        .keyboardShortcut(.leftArrow, modifiers: [.control, .option])
+        .disabled(!hasAccess)
+
+        Button(action: { WindowMover.shared.moveWindow(.right) }) {
+            Label { Text("Right") } icon: { Image(nsImage: TileIcon.image(.right)) }
+        }
+        .keyboardShortcut(.rightArrow, modifiers: [.control, .option])
+        .disabled(!hasAccess)
+
+        Button(action: { WindowMover.shared.moveWindow(.up) }) {
+            Label { Text("Top") } icon: { Image(nsImage: TileIcon.image(.top)) }
+        }
+        .keyboardShortcut(.upArrow, modifiers: [.control, .option])
+        .disabled(!hasAccess)
+
+        Button(action: { WindowMover.shared.moveWindow(.down) }) {
+            Label { Text("Bottom") } icon: { Image(nsImage: TileIcon.image(.bottom)) }
+        }
+        .keyboardShortcut(.downArrow, modifiers: [.control, .option])
+        .disabled(!hasAccess)
+
+        Button(action: { WindowMover.shared.moveWindow(.maximize) }) {
+            Label { Text("Full") } icon: { Image(nsImage: TileIcon.image(.full)) }
+        }
+        .keyboardShortcut(.return, modifiers: [.control, .option])
+        .disabled(!hasAccess)
+
+        Divider()
+
+        if !hasAccess {
+            Label("Tile needs accessibility permissions", systemImage: "exclamationmark.triangle")
+
+            Button("Grant Accessibility...") {
+                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+            }
+
+            Divider()
+        }
+
+        Button("Quit") {
+            NSApplication.shared.terminate(nil)
+        }
+        .keyboardShortcut("q")
     }
 }
 
@@ -581,54 +656,7 @@ struct tileApp: App {
         .defaultPosition(.center)
 
         MenuBarExtra {
-            let hasAccess = AXIsProcessTrusted()
-
-            Button(action: { WindowMover.shared.moveWindow(.left) }) {
-                Label { Text("Left") } icon: { Image(nsImage: TileIcon.image(.left)) }
-            }
-            .keyboardShortcut(.leftArrow, modifiers: [.control, .option])
-            .disabled(!hasAccess)
-
-            Button(action: { WindowMover.shared.moveWindow(.right) }) {
-                Label { Text("Right") } icon: { Image(nsImage: TileIcon.image(.right)) }
-            }
-            .keyboardShortcut(.rightArrow, modifiers: [.control, .option])
-            .disabled(!hasAccess)
-
-            Button(action: { WindowMover.shared.moveWindow(.up) }) {
-                Label { Text("Top") } icon: { Image(nsImage: TileIcon.image(.top)) }
-            }
-            .keyboardShortcut(.upArrow, modifiers: [.control, .option])
-            .disabled(!hasAccess)
-
-            Button(action: { WindowMover.shared.moveWindow(.down) }) {
-                Label { Text("Bottom") } icon: { Image(nsImage: TileIcon.image(.bottom)) }
-            }
-            .keyboardShortcut(.downArrow, modifiers: [.control, .option])
-            .disabled(!hasAccess)
-
-            Button(action: { WindowMover.shared.moveWindow(.maximize) }) {
-                Label { Text("Full") } icon: { Image(nsImage: TileIcon.image(.full)) }
-            }
-            .keyboardShortcut(.return, modifiers: [.control, .option])
-            .disabled(!hasAccess)
-
-            Divider()
-
-            if !hasAccess {
-                Label("Tile needs accessibility permissions", systemImage: "exclamationmark.triangle")
-
-                Button("Grant Accessibility...") {
-                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-                }
-
-                Divider()
-            }
-
-            Button("Quit") {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q")
+            MenuContentView()
         } label: {
             Image(nsImage: TileIcon.image(.full, size: 18))
         }
