@@ -1,6 +1,7 @@
 import SwiftUI
 import KeyboardShortcuts
 import os.log
+import Carbon.HIToolbox
 
 // MARK: - Logger
 
@@ -541,11 +542,147 @@ final class AccessibilityState {
     }
 }
 
+// MARK: - Shortcut Observer
+
+@Observable
+final class ShortcutObserver {
+    static let shared = ShortcutObserver()
+
+    var leftHalf: KeyboardShortcuts.Shortcut?
+    var rightHalf: KeyboardShortcuts.Shortcut?
+    var topHalf: KeyboardShortcuts.Shortcut?
+    var bottomHalf: KeyboardShortcuts.Shortcut?
+    var maximize: KeyboardShortcuts.Shortcut?
+
+    private var observer: NSObjectProtocol?
+
+    private init() {
+        loadShortcuts()
+
+        // Observe changes via notification
+        observer = NotificationCenter.default.addObserver(
+            forName: Notification.Name("KeyboardShortcuts_shortcutByNameDidChange"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.loadShortcuts()
+        }
+    }
+
+    deinit {
+        if let observer {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    private func loadShortcuts() {
+        leftHalf = KeyboardShortcuts.getShortcut(for: .leftHalf)
+        rightHalf = KeyboardShortcuts.getShortcut(for: .rightHalf)
+        topHalf = KeyboardShortcuts.getShortcut(for: .topHalf)
+        bottomHalf = KeyboardShortcuts.getShortcut(for: .bottomHalf)
+        maximize = KeyboardShortcuts.getShortcut(for: .maximize)
+    }
+}
+
+// MARK: - Shortcut Conversion
+
+extension KeyboardShortcuts.Shortcut {
+    /// Convert to SwiftUI KeyboardShortcut for menu display
+    @MainActor
+    var swiftUIShortcut: SwiftUI.KeyboardShortcut? {
+        guard let key else { return nil }
+
+        let keyEquivalent: SwiftUI.KeyEquivalent
+        switch key {
+        case .return: keyEquivalent = .return
+        case .delete: keyEquivalent = .delete
+        case .deleteForward: keyEquivalent = .deleteForward
+        case .end: keyEquivalent = .end
+        case .escape: keyEquivalent = .escape
+        case .home: keyEquivalent = .home
+        case .pageDown: keyEquivalent = .pageDown
+        case .pageUp: keyEquivalent = .pageUp
+        case .space: keyEquivalent = .space
+        case .tab: keyEquivalent = .tab
+        case .upArrow: keyEquivalent = .upArrow
+        case .downArrow: keyEquivalent = .downArrow
+        case .leftArrow: keyEquivalent = .leftArrow
+        case .rightArrow: keyEquivalent = .rightArrow
+        default:
+            // For other keys, try to get the character from the key code
+            guard let char = keyToCharacter() else { return nil }
+            keyEquivalent = SwiftUI.KeyEquivalent(char)
+        }
+
+        var eventModifiers: SwiftUI.EventModifiers = []
+        if modifiers.contains(.command) { eventModifiers.insert(.command) }
+        if modifiers.contains(.control) { eventModifiers.insert(.control) }
+        if modifiers.contains(.option) { eventModifiers.insert(.option) }
+        if modifiers.contains(.shift) { eventModifiers.insert(.shift) }
+
+        return SwiftUI.KeyboardShortcut(keyEquivalent, modifiers: eventModifiers)
+    }
+
+    /// Get the character for the current key code using the keyboard layout
+    @MainActor
+    private func keyToCharacter() -> Character? {
+        guard
+            let source = TISCopyCurrentASCIICapableKeyboardLayoutInputSource()?.takeRetainedValue(),
+            let layoutDataPointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
+        else {
+            return nil
+        }
+
+        let layoutData = unsafeBitCast(layoutDataPointer, to: CFData.self)
+        let keyLayout = unsafeBitCast(
+            CFDataGetBytePtr(layoutData),
+            to: UnsafePointer<CoreServices.UCKeyboardLayout>.self
+        )
+        var deadKeyState: UInt32 = 0
+        let maxLength = 4
+        var length = 0
+        var characters = [UniChar](repeating: 0, count: maxLength)
+
+        let error = CoreServices.UCKeyTranslate(
+            keyLayout,
+            UInt16(carbonKeyCode),
+            UInt16(CoreServices.kUCKeyActionDisplay),
+            0,
+            UInt32(LMGetKbdType()),
+            OptionBits(CoreServices.kUCKeyTranslateNoDeadKeysBit),
+            &deadKeyState,
+            maxLength,
+            &length,
+            &characters
+        )
+
+        guard error == noErr else { return nil }
+
+        let string = String(utf16CodeUnits: characters, count: length)
+        return string.first
+    }
+}
+
+// MARK: - Dynamic Shortcut Modifier
+
+extension View {
+    /// Applies a keyboard shortcut if one is set, otherwise returns the view unchanged
+    @MainActor @ViewBuilder
+    func keyboardShortcut(_ shortcut: KeyboardShortcuts.Shortcut?) -> some View {
+        if let swiftUIShortcut = shortcut?.swiftUIShortcut {
+            self.keyboardShortcut(swiftUIShortcut)
+        } else {
+            self
+        }
+    }
+}
+
 // MARK: - Menu Content
 
 struct MenuContentView: View {
     @Environment(\.openWindow) private var openWindow
     private var accessibilityState = AccessibilityState.shared
+    private var shortcuts = ShortcutObserver.shared
 
     var body: some View {
         let hasAccess = accessibilityState.hasAccess
@@ -553,31 +690,31 @@ struct MenuContentView: View {
         Button(action: { WindowMover.shared.moveWindow(.left) }) {
             Label { Text("Left") } icon: { Image(nsImage: TileIcon.image(.left)) }
         }
-        .keyboardShortcut(.leftArrow, modifiers: [.control, .option])
+        .keyboardShortcut(shortcuts.leftHalf)
         .disabled(!hasAccess)
 
         Button(action: { WindowMover.shared.moveWindow(.right) }) {
             Label { Text("Right") } icon: { Image(nsImage: TileIcon.image(.right)) }
         }
-        .keyboardShortcut(.rightArrow, modifiers: [.control, .option])
+        .keyboardShortcut(shortcuts.rightHalf)
         .disabled(!hasAccess)
 
         Button(action: { WindowMover.shared.moveWindow(.up) }) {
             Label { Text("Top") } icon: { Image(nsImage: TileIcon.image(.top)) }
         }
-        .keyboardShortcut(.upArrow, modifiers: [.control, .option])
+        .keyboardShortcut(shortcuts.topHalf)
         .disabled(!hasAccess)
 
         Button(action: { WindowMover.shared.moveWindow(.down) }) {
             Label { Text("Bottom") } icon: { Image(nsImage: TileIcon.image(.bottom)) }
         }
-        .keyboardShortcut(.downArrow, modifiers: [.control, .option])
+        .keyboardShortcut(shortcuts.bottomHalf)
         .disabled(!hasAccess)
 
         Button(action: { WindowMover.shared.moveWindow(.maximize) }) {
             Label { Text("Full") } icon: { Image(nsImage: TileIcon.image(.full)) }
         }
-        .keyboardShortcut(.return, modifiers: [.control, .option])
+        .keyboardShortcut(shortcuts.maximize)
         .disabled(!hasAccess)
 
         Divider()
