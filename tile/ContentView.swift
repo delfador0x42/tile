@@ -1,24 +1,24 @@
+////
+////  ContentView.swift
+////  tile
+////
+////  Created by tal on 1/19/26.
+////
 //
-//  ContentView.swift
-//  tile
+//import SwiftUI
 //
-//  Created by tal on 1/19/26.
+//struct ContentView: View {
+//    var body: some View {
+//        VStack {
+//            Image(systemName: "globe")
+//                .imageScale(.large)
+//                .foregroundStyle(.tint)
+//            Text("Hello, world!")
+//        }/Users/tal/wudan/dojo/tile_3/tile_3/Assets.xcassets
+//        .padding()
+//    }
+//}
 //
-
-import SwiftUI
-
-struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
-
-#Preview {
-    ContentView()
-}
+//#Preview {
+//    ContentView()
+//}
