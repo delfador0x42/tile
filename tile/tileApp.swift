@@ -1,5 +1,28 @@
 import SwiftUI
 import KeyboardShortcuts
+import os.log
+
+// MARK: - Logger
+
+private enum Log {
+    private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "tile", category: "WindowMover")
+
+    static func debug(_ message: String) {
+        #if DEBUG
+        logger.debug("\(message)")
+        #endif
+    }
+
+    static func warning(_ message: String) {
+        logger.warning("\(message)")
+    }
+
+    static func error(_ message: String) {
+        logger.error("\(message)")
+    }
+}
+
+// MARK: - Keyboard Shortcuts
 
 extension KeyboardShortcuts.Name {
     static let leftHalf = Self("leftHalf", default: .init(.leftArrow, modifiers: [.control, .option]))
@@ -80,39 +103,42 @@ struct ScreenGrid {
         self.screenFrame = CGRect(origin: CGPoint(x: screen.visibleFrame.origin.x, y: screenY),
                                    size: screen.visibleFrame.size)
 
-        let f = frame
-        let w = f.width
-        let h = f.height
-        let x = f.origin.x
-        let cocoaY = f.origin.y
+        let width = frame.width
+        let height = frame.height
+        let originX = frame.origin.x
+        let originY = frame.origin.y
 
         // Helper to create position with coordinate conversion
-        func pos(_ originX: CGFloat, cocoaOriginY: CGFloat, width: CGFloat, height: CGFloat) -> WindowPosition {
-            let screenOriginY = ScreenGrid.screenY(cocoaY: cocoaOriginY, height: height)
-            return WindowPosition(origin: CGPoint(x: originX, y: screenOriginY), size: CGSize(width: width, height: height), screenIndex: index)
+        func pos(_ x: CGFloat, cocoaY: CGFloat, w: CGFloat, h: CGFloat) -> WindowPosition {
+            let screenY = ScreenGrid.screenY(cocoaY: cocoaY, height: h)
+            return WindowPosition(
+                origin: CGPoint(x: x, y: screenY),
+                size: CGSize(width: w, height: h),
+                screenIndex: index
+            )
         }
 
         // Halves
-        leftHalf = pos(x, cocoaOriginY: cocoaY, width: w/2, height: h)
-        rightHalf = pos(x + w/2, cocoaOriginY: cocoaY, width: w/2, height: h)
-        topHalf = pos(x, cocoaOriginY: cocoaY + h/2, width: w, height: h/2)
-        bottomHalf = pos(x, cocoaOriginY: cocoaY, width: w, height: h/2)
+        leftHalf = pos(originX, cocoaY: originY, w: width / 2, h: height)
+        rightHalf = pos(originX + width / 2, cocoaY: originY, w: width / 2, h: height)
+        topHalf = pos(originX, cocoaY: originY + height / 2, w: width, h: height / 2)
+        bottomHalf = pos(originX, cocoaY: originY, w: width, h: height / 2)
 
         // Thirds
-        leftThird = pos(x, cocoaOriginY: cocoaY, width: w/3, height: h)
-        centerThird = pos(x + w/3, cocoaOriginY: cocoaY, width: w/3, height: h)
-        rightThird = pos(x + 2*w/3, cocoaOriginY: cocoaY, width: w/3, height: h)
-        leftTwoThirds = pos(x, cocoaOriginY: cocoaY, width: 2*w/3, height: h)
-        rightTwoThirds = pos(x + w/3, cocoaOriginY: cocoaY, width: 2*w/3, height: h)
+        leftThird = pos(originX, cocoaY: originY, w: width / 3, h: height)
+        centerThird = pos(originX + width / 3, cocoaY: originY, w: width / 3, h: height)
+        rightThird = pos(originX + 2 * width / 3, cocoaY: originY, w: width / 3, h: height)
+        leftTwoThirds = pos(originX, cocoaY: originY, w: 2 * width / 3, h: height)
+        rightTwoThirds = pos(originX + width / 3, cocoaY: originY, w: 2 * width / 3, h: height)
 
         // Quarters
-        topLeft = pos(x, cocoaOriginY: cocoaY + h/2, width: w/2, height: h/2)
-        topRight = pos(x + w/2, cocoaOriginY: cocoaY + h/2, width: w/2, height: h/2)
-        bottomLeft = pos(x, cocoaOriginY: cocoaY, width: w/2, height: h/2)
-        bottomRight = pos(x + w/2, cocoaOriginY: cocoaY, width: w/2, height: h/2)
+        topLeft = pos(originX, cocoaY: originY + height / 2, w: width / 2, h: height / 2)
+        topRight = pos(originX + width / 2, cocoaY: originY + height / 2, w: width / 2, h: height / 2)
+        bottomLeft = pos(originX, cocoaY: originY, w: width / 2, h: height / 2)
+        bottomRight = pos(originX + width / 2, cocoaY: originY, w: width / 2, h: height / 2)
 
         // Full
-        full = pos(x, cocoaOriginY: cocoaY, width: w, height: h)
+        full = pos(originX, cocoaY: originY, w: width, h: height)
     }
 }
 
@@ -202,12 +228,12 @@ final class WindowMover {
 
     func moveWindow(_ direction: Direction) {
         guard let (window, pid) = getFocusedWindow() else {
-            print("[WindowMover] ERROR: No focused window found")
+            Log.error("No focused window found")
             return
         }
 
         guard let currentRect = getWindowRect(window) else {
-            print("[WindowMover] ERROR: Could not get window rect")
+            Log.error("Could not get window rect")
             return
         }
 
@@ -215,7 +241,7 @@ final class WindowMover {
 
         let positions = positionsForDirection(direction)
         guard !positions.isEmpty else {
-            print("[WindowMover] ERROR: No positions available")
+            Log.error("No positions available")
             return
         }
 
@@ -225,11 +251,11 @@ final class WindowMover {
         if let last = windowHistory[windowID], last.direction == direction {
             // Same direction pressed again → cycle to next position
             targetIndex = (last.index + 1) % positions.count
-            print("[WindowMover] \(windowID): cycling \(direction) → position[\(targetIndex)]")
+            Log.debug("\(windowID): cycling \(direction) → position[\(targetIndex)]")
         } else {
             // Different direction or first time → find primary position for current screen
             targetIndex = findPrimaryPositionIndex(for: currentRect, in: positions, direction: direction)
-            print("[WindowMover] \(windowID): starting \(direction) → position[\(targetIndex)]")
+            Log.debug("\(windowID): starting \(direction) → position[\(targetIndex)]")
         }
 
         // Update history
@@ -238,7 +264,7 @@ final class WindowMover {
         // Apply the position
         let result = applyPosition(positions[targetIndex], to: window)
         if !result {
-            print("[WindowMover] WARNING: applyPosition may have failed for \(windowID)")
+            Log.warning("applyPosition may have failed for \(windowID)")
         }
     }
 
@@ -280,7 +306,7 @@ final class WindowMover {
 
         guard let posVal = AXValueCreate(.cgPoint, &pos),
               let sizeVal = AXValueCreate(.cgSize, &size) else {
-            print("[WindowMover] ERROR: Failed to create AXValue for position/size")
+            Log.error("Failed to create AXValue for position/size")
             return false
         }
 
@@ -288,10 +314,10 @@ final class WindowMover {
         let sizeResult = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeVal)
 
         if posResult != .success {
-            print("[WindowMover] Failed to set position: \(posResult.rawValue)")
+            Log.error("Failed to set position: \(posResult.rawValue)")
         }
         if sizeResult != .success {
-            print("[WindowMover] Failed to set size: \(sizeResult.rawValue)")
+            Log.error("Failed to set size: \(sizeResult.rawValue)")
         }
 
         return posResult == .success && sizeResult == .success
@@ -304,7 +330,7 @@ final class WindowMover {
 func getFocusedWindow() -> (window: AXUIElement, pid: pid_t)? {
     // Use NSWorkspace to get frontmost app (more reliable than AX system-wide)
     guard let frontApp = NSWorkspace.shared.frontmostApplication else {
-        print("[AX] No frontmost application")
+        Log.debug("No frontmost application")
         return nil
     }
 
@@ -314,7 +340,7 @@ func getFocusedWindow() -> (window: AXUIElement, pid: pid_t)? {
 
     // Skip if our own app is frontmost (shouldn't happen but just in case)
     if bundleID == Bundle.main.bundleIdentifier {
-        print("[AX] Our app is frontmost, skipping")
+        Log.debug("Our app is frontmost, skipping")
         return nil
     }
 
@@ -324,21 +350,22 @@ func getFocusedWindow() -> (window: AXUIElement, pid: pid_t)? {
     var window: AnyObject?
     let windowResult = AXUIElementCopyAttributeValue(axApp, kAXFocusedWindowAttribute as CFString, &window)
     if windowResult == .success, let axWindow = window {
-        // swiftlint:disable:next force_cast
+        // Safe force cast: AXUIElementCopyAttributeValue for kAXFocusedWindowAttribute
+        // always returns an AXUIElement when successful
         return (axWindow as! AXUIElement, pid)
     }
 
-    print("[AX] App '\(appName)' (\(bundleID)) - kAXFocusedWindowAttribute failed: \(windowResult.rawValue)")
+    Log.debug("App '\(appName)' (\(bundleID)) - kAXFocusedWindowAttribute failed: \(windowResult.rawValue)")
 
     // Fallback: try getting all windows
     var windows: AnyObject?
     let windowsResult = AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windows)
     if windowsResult == .success, let windowList = windows as? [AXUIElement], let first = windowList.first {
-        print("[AX] Found \(windowList.count) windows via kAXWindowsAttribute, using first")
+        Log.debug("Found \(windowList.count) windows via kAXWindowsAttribute, using first")
         return (first, pid)
     }
 
-    print("[AX] kAXWindowsAttribute also failed: \(windowsResult.rawValue)")
+    Log.debug("kAXWindowsAttribute also failed: \(windowsResult.rawValue)")
     return nil
 }
 
@@ -354,74 +381,12 @@ func getWindowRect(_ window: AXUIElement) -> CGRect? {
     var position = CGPoint.zero
     var size = CGSize.zero
 
+    // Safe force casts: kAXPositionAttribute returns CGPoint wrapped in AXValue,
+    // kAXSizeAttribute returns CGSize wrapped in AXValue (guaranteed by Accessibility API)
     AXValueGetValue(posValue as! AXValue, .cgPoint, &position)
     AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
 
     return CGRect(origin: position, size: size)
-}
-
-// MARK: - Debug / Test
-
-struct TilingTest {
-    static func runDiagnostics() {
-        print("\n" + String(repeating: "=", count: 60))
-        print("WINDOW TILING DIAGNOSTICS")
-        print(String(repeating: "=", count: 60))
-
-        let mover = WindowMover.shared
-        mover.rebuildGrids()
-
-        // Screen info
-        print("\nScreens (\(NSScreen.screens.count) total):")
-        for (i, screen) in NSScreen.screens.enumerated() {
-            print("  [\(i)] frame: \(screen.frame)")
-            print("       visible: \(screen.visibleFrame)")
-        }
-
-        // Position info
-        print("\nLEFT positions (sorted by X descending - rightmost first):")
-        let leftPositions = mover.positionsForDirection(.left)
-        for (i, pos) in leftPositions.enumerated() {
-            print("  [\(i)] x=\(Int(pos.origin.x)), y=\(Int(pos.origin.y)), " +
-                  "size=\(Int(pos.size.width))x\(Int(pos.size.height)), screen=\(pos.screenIndex)")
-        }
-
-        // Current window info
-        if let (window, _) = getFocusedWindow(), let rect = getWindowRect(window) {
-            print("\nFocused window: x=\(Int(rect.origin.x)), y=\(Int(rect.origin.y)), " +
-                  "size=\(Int(rect.size.width))x\(Int(rect.size.height))")
-
-            if let matchIndex = leftPositions.firstIndex(where: { $0.matchesRect(rect) }) {
-                print("  Matches position[\(matchIndex)]")
-            } else {
-                print("  No position match (will snap to primary position on next move)")
-            }
-        } else {
-            print("\nNo focused window or unable to get window rect")
-        }
-
-        print(String(repeating: "=", count: 60) + "\n")
-    }
-
-    static func runCycleTest(direction: Direction, presses: Int = 6) {
-        let mover = WindowMover.shared
-        let positions = mover.positionsForDirection(direction)
-
-        print("\n--- Cycle Test: \(direction) (\(presses) presses) ---")
-
-        for i in 1...presses {
-            mover.moveWindow(direction)
-
-            // Small delay to let the window settle
-            usleep(100_000) // 100ms
-
-            if let (window, _) = getFocusedWindow(), let rect = getWindowRect(window) {
-                let matchIndex = positions.firstIndex(where: { $0.matchesRect(rect) })
-                let matchStr = matchIndex.map { "position[\($0)]" } ?? "no match"
-                print("  Press \(i): x=\(Int(rect.origin.x)) -> \(matchStr)")
-            }
-        }
-    }
 }
 
 // MARK: - Tile Icons
@@ -429,29 +394,49 @@ struct TilingTest {
 enum TileIcon {
     case left, right, top, bottom, full
 
+    /// Returns the fill rect for this icon within the given frame
+    private func fillRect(in frame: NSRect) -> NSRect {
+        switch self {
+        case .left:
+            return NSRect(x: frame.minX, y: frame.minY, width: frame.width / 2, height: frame.height)
+        case .right:
+            return NSRect(x: frame.midX, y: frame.minY, width: frame.width / 2, height: frame.height)
+        case .top:
+            return NSRect(x: frame.minX, y: frame.midY, width: frame.width, height: frame.height / 2)
+        case .bottom:
+            return NSRect(x: frame.minX, y: frame.minY, width: frame.width, height: frame.height / 2)
+        case .full:
+            return frame
+        }
+    }
+
+    /// Draws a divider line for half icons (vertical for left/right, horizontal for top/bottom)
+    private func drawDivider(in frame: NSRect) {
+        guard self != .full else { return }
+
+        let divider = NSBezierPath()
+        switch self {
+        case .left, .right:
+            divider.move(to: NSPoint(x: frame.midX, y: frame.minY))
+            divider.line(to: NSPoint(x: frame.midX, y: frame.maxY))
+        case .top, .bottom:
+            divider.move(to: NSPoint(x: frame.minX, y: frame.midY))
+            divider.line(to: NSPoint(x: frame.maxX, y: frame.midY))
+        case .full:
+            return
+        }
+        divider.lineWidth = 0.5
+        divider.stroke()
+    }
+
     static func image(_ icon: TileIcon, size: CGFloat = 16) -> NSImage {
         let img = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
             let inset: CGFloat = 1.5
             let frame = rect.insetBy(dx: inset, dy: inset)
 
-            // Fill region
-            let fillRect: NSRect
-            switch icon {
-            case .left:
-                fillRect = NSRect(x: frame.minX, y: frame.minY, width: frame.width / 2, height: frame.height)
-            case .right:
-                fillRect = NSRect(x: frame.midX, y: frame.minY, width: frame.width / 2, height: frame.height)
-            case .top:
-                fillRect = NSRect(x: frame.minX, y: frame.midY, width: frame.width, height: frame.height / 2)
-            case .bottom:
-                fillRect = NSRect(x: frame.minX, y: frame.minY, width: frame.width, height: frame.height / 2)
-            case .full:
-                fillRect = frame
-            }
-
             // Draw filled region
             NSColor.labelColor.withAlphaComponent(0.25).setFill()
-            NSBezierPath(rect: fillRect).fill()
+            NSBezierPath(rect: icon.fillRect(in: frame)).fill()
 
             // Draw thin frame
             NSColor.labelColor.setStroke()
@@ -460,21 +445,8 @@ enum TileIcon {
             path.stroke()
 
             // Draw divider for halves
-            if icon != .full {
-                let divider = NSBezierPath()
-                switch icon {
-                case .left, .right:
-                    divider.move(to: NSPoint(x: frame.midX, y: frame.minY))
-                    divider.line(to: NSPoint(x: frame.midX, y: frame.maxY))
-                case .top, .bottom:
-                    divider.move(to: NSPoint(x: frame.minX, y: frame.midY))
-                    divider.line(to: NSPoint(x: frame.maxX, y: frame.midY))
-                case .full:
-                    break
-                }
-                divider.lineWidth = 0.5
-                divider.stroke()
-            }
+            icon.drawDivider(in: frame)
+
             return true
         }
         img.isTemplate = true
@@ -572,6 +544,7 @@ final class AccessibilityState {
 // MARK: - Menu Content
 
 struct MenuContentView: View {
+    @Environment(\.openWindow) private var openWindow
     private var accessibilityState = AccessibilityState.shared
 
     var body: some View {
@@ -619,10 +592,35 @@ struct MenuContentView: View {
             Divider()
         }
 
+        Button("Preferences...") {
+            openWindow(id: "preferences")
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        .keyboardShortcut(",")
+
         Button("Quit") {
             NSApplication.shared.terminate(nil)
         }
         .keyboardShortcut("q")
+    }
+}
+
+// MARK: - Preferences View
+
+struct PreferencesView: View {
+    var body: some View {
+        Form {
+            Section("Window Positions") {
+                KeyboardShortcuts.Recorder("Left Half:", name: .leftHalf)
+                KeyboardShortcuts.Recorder("Right Half:", name: .rightHalf)
+                KeyboardShortcuts.Recorder("Top Half:", name: .topHalf)
+                KeyboardShortcuts.Recorder("Bottom Half:", name: .bottomHalf)
+                KeyboardShortcuts.Recorder("Maximize:", name: .maximize)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 300)
+        .fixedSize()
     }
 }
 
@@ -651,6 +649,12 @@ struct tileApp: App {
     var body: some Scene {
         Window("Accessibility", id: "accessibility") {
             AccessibilityAuthorizationView()
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
+        Window("Preferences", id: "preferences") {
+            PreferencesView()
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
