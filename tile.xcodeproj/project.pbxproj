@@ -6,18 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		3F8400952F060BC800749BAA /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 3F8400942F060BC800749BAA /* KeyboardShortcuts */; };
-		3FE362102F104BA900442BBB /* TestPlan.xctestplan in Resources */ = {isa = PBXBuildFile; fileRef = 3FE3620F2F104BA900442BBB /* TestPlan.xctestplan */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
-		3FE3620A2F103FB100442BBB /* tile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tile.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		3FE3620F2F104BA900442BBB /* TestPlan.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = TestPlan.xctestplan; sourceTree = "<group>"; };
+		3FF074E42F1F00160072E2BB /* tile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		3FFE2D892F05E75D00D02815 /* tile */ = {
+		3FF074E62F1F00160072E2BB /* tile */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = tile;
 			sourceTree = "<group>";
@@ -25,103 +19,103 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		3FFE2D842F05E75D00D02815 /* Frameworks */ = {
+		3FF074E12F1F00160072E2BB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3F8400952F060BC800749BAA /* KeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		3FFE2D7E2F05E75D00D02815 = {
+		3FF074DB2F1F00160072E2BB = {
 			isa = PBXGroup;
 			children = (
-				3FE3620F2F104BA900442BBB /* TestPlan.xctestplan */,
-				3FFE2D892F05E75D00D02815 /* tile */,
-				3FE3620A2F103FB100442BBB /* tile.app */,
+				3FF074E62F1F00160072E2BB /* tile */,
+				3FF074E52F1F00160072E2BB /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		3FF074E52F1F00160072E2BB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				3FF074E42F1F00160072E2BB /* tile.app */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3FFE2D862F05E75D00D02815 /* tile */ = {
+		3FF074E32F1F00160072E2BB /* tile */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 3FFE2D922F05E75E00D02815 /* Build configuration list for PBXNativeTarget "tile" */;
+			buildConfigurationList = 3FF074EF2F1F00170072E2BB /* Build configuration list for PBXNativeTarget "tile" */;
 			buildPhases = (
-				3FFE2D832F05E75D00D02815 /* Sources */,
-				3FFE2D842F05E75D00D02815 /* Frameworks */,
-				3FFE2D852F05E75D00D02815 /* Resources */,
+				3FF074E02F1F00160072E2BB /* Sources */,
+				3FF074E12F1F00160072E2BB /* Frameworks */,
+				3FF074E22F1F00160072E2BB /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				3FFE2D892F05E75D00D02815 /* tile */,
+				3FF074E62F1F00160072E2BB /* tile */,
 			);
 			name = tile;
 			packageProductDependencies = (
-				3F8400942F060BC800749BAA /* KeyboardShortcuts */,
 			);
 			productName = tile;
-			productReference = 3FE3620A2F103FB100442BBB /* tile.app */;
+			productReference = 3FF074E42F1F00160072E2BB /* tile.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		3FFE2D7F2F05E75D00D02815 /* Project object */ = {
+		3FF074DC2F1F00160072E2BB /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
-					3FFE2D862F05E75D00D02815 = {
+					3FF074E32F1F00160072E2BB = {
 						CreatedOnToolsVersion = 26.2;
-						LastSwiftMigration = 2620;
 					};
 				};
 			};
-			buildConfigurationList = 3FFE2D822F05E75D00D02815 /* Build configuration list for PBXProject "tile" */;
+			buildConfigurationList = 3FF074DF2F1F00160072E2BB /* Build configuration list for PBXProject "tile" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = 3FFE2D7E2F05E75D00D02815;
+			mainGroup = 3FF074DB2F1F00160072E2BB;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				3F8400932F060BC800749BAA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
-			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 3FFE2D7E2F05E75D00D02815;
+			productRefGroup = 3FF074E52F1F00160072E2BB /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				3FFE2D862F05E75D00D02815 /* tile */,
+				3FF074E32F1F00160072E2BB /* tile */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		3FFE2D852F05E75D00D02815 /* Resources */ = {
+		3FF074E22F1F00160072E2BB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				3FE362102F104BA900442BBB /* TestPlan.xctestplan in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		3FFE2D832F05E75D00D02815 /* Sources */ = {
+		3FF074E02F1F00160072E2BB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -131,7 +125,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		3FFE2D902F05E75E00D02815 /* Debug */ = {
+		3FF074ED2F1F00170072E2BB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -195,7 +189,7 @@
 			};
 			name = Debug;
 		};
-		3FFE2D912F05E75E00D02815 /* Release */ = {
+		3FF074EE2F1F00170072E2BB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -251,62 +245,59 @@
 			};
 			name = Release;
 		};
-		3FFE2D932F05E75E00D02815 /* Debug */ = {
+		3FF074F02F1F00170072E2BB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 99HGW2AR62;
-				ENABLE_APP_SANDBOX = NO;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.wudan-mountain.tile";
+				PRODUCT_BUNDLE_IDENTIFIER = wudan.tile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
-		3FFE2D942F05E75E00D02815 /* Release */ = {
+		3FF074F12F1F00170072E2BB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 99HGW2AR62;
-				ENABLE_APP_SANDBOX = NO;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.wudan-mountain.tile";
+				PRODUCT_BUNDLE_IDENTIFIER = wudan.tile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -321,44 +312,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		3FFE2D822F05E75D00D02815 /* Build configuration list for PBXProject "tile" */ = {
+		3FF074DF2F1F00160072E2BB /* Build configuration list for PBXProject "tile" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3FFE2D902F05E75E00D02815 /* Debug */,
-				3FFE2D912F05E75E00D02815 /* Release */,
+				3FF074ED2F1F00170072E2BB /* Debug */,
+				3FF074EE2F1F00170072E2BB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		3FFE2D922F05E75E00D02815 /* Build configuration list for PBXNativeTarget "tile" */ = {
+		3FF074EF2F1F00170072E2BB /* Build configuration list for PBXNativeTarget "tile" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3FFE2D932F05E75E00D02815 /* Debug */,
-				3FFE2D942F05E75E00D02815 /* Release */,
+				3FF074F02F1F00170072E2BB /* Debug */,
+				3FF074F12F1F00170072E2BB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		3F8400932F060BC800749BAA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.4.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		3F8400942F060BC800749BAA /* KeyboardShortcuts */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3F8400932F060BC800749BAA /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
-			productName = KeyboardShortcuts;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = 3FFE2D7F2F05E75D00D02815 /* Project object */;
+	rootObject = 3FF074DC2F1F00160072E2BB /* Project object */;
 }
