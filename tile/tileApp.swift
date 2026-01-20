@@ -581,32 +581,49 @@ struct tileApp: App {
         .defaultPosition(.center)
 
         MenuBarExtra {
+            let hasAccess = AXIsProcessTrusted()
+
             Button(action: { WindowMover.shared.moveWindow(.left) }) {
                 Label { Text("Left") } icon: { Image(nsImage: TileIcon.image(.left)) }
             }
             .keyboardShortcut(.leftArrow, modifiers: [.control, .option])
+            .disabled(!hasAccess)
 
             Button(action: { WindowMover.shared.moveWindow(.right) }) {
                 Label { Text("Right") } icon: { Image(nsImage: TileIcon.image(.right)) }
             }
             .keyboardShortcut(.rightArrow, modifiers: [.control, .option])
+            .disabled(!hasAccess)
 
             Button(action: { WindowMover.shared.moveWindow(.up) }) {
                 Label { Text("Top") } icon: { Image(nsImage: TileIcon.image(.top)) }
             }
             .keyboardShortcut(.upArrow, modifiers: [.control, .option])
+            .disabled(!hasAccess)
 
             Button(action: { WindowMover.shared.moveWindow(.down) }) {
                 Label { Text("Bottom") } icon: { Image(nsImage: TileIcon.image(.bottom)) }
             }
             .keyboardShortcut(.downArrow, modifiers: [.control, .option])
+            .disabled(!hasAccess)
 
             Button(action: { WindowMover.shared.moveWindow(.maximize) }) {
                 Label { Text("Full") } icon: { Image(nsImage: TileIcon.image(.full)) }
             }
             .keyboardShortcut(.return, modifiers: [.control, .option])
+            .disabled(!hasAccess)
 
             Divider()
+
+            if !hasAccess {
+                Label("Tile needs accessibility permissions", systemImage: "exclamationmark.triangle")
+
+                Button("Grant Accessibility...") {
+                    NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                }
+
+                Divider()
+            }
 
             Button("Quit") {
                 NSApplication.shared.terminate(nil)
