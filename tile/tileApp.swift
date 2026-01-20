@@ -482,10 +482,81 @@ enum TileIcon {
     }
 }
 
+// MARK: - Accessibility Authorization View
+
+struct AccessibilityAuthorizationView: View {
+    @Environment(\.dismiss) private var dismiss
+
+    private let accessibilitySettingsURL = URL(
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+    )!
+
+    var body: some View {
+        VStack(spacing: 22) {
+            Text("Authorize Tile")
+                .font(.title)
+
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 60, height: 60)
+
+            Text("Tile needs your permission to control your window positions.")
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Text("Go to System Settings → Privacy & Security → Accessibility")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+
+            Button("Open System Settings") {
+                NSWorkspace.shared.open(accessibilitySettingsURL)
+//                if !AXIsProcessTrusted() {
+//                            AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeRetainedValue(): true] as CFDictionary)
+//                            return
+//                }
+                dismiss()
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut(.defaultAction)
+
+//            Text("Enable Tile.app")
+//                .font(.body)
+        }
+        .padding(20)
+        .frame(width: 350)
+        .onAppear {
+            // Dismiss immediately if we already have permissions
+            if AXIsProcessTrusted() {
+                dismiss()
+            }
+        }
+    }
+}
+
+// MARK: - App Delegate
+
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if !AXIsProcessTrusted() {
+            // Open the accessibility window after a brief delay to ensure the window is registered
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                if let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "accessibility" }) {
+                    window.makeKeyAndOrderFront(nil)
+                    NSApp.activate(ignoringOtherApps: true)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - App
 
 @main
 struct tileApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     init() {
         setupShortcuts()
     }
@@ -503,6 +574,12 @@ struct tileApp: App {
     }
 
     var body: some Scene {
+        Window("Accessibility", id: "accessibility") {
+            AccessibilityAuthorizationView()
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
         MenuBarExtra {
             Button(action: { WindowMover.shared.moveWindow(.left) }) {
                 Label { Text("Left") } icon: { Image(nsImage: TileIcon.image(.left)) }
