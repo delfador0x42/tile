@@ -13,4 +13,5 @@ Record your preferred keyboard shortcuts.
 Permission request views.
 <br>
 <img width="572" height="471" alt="image" src="https://github.com/user-attachments/assets/e6780a06-6e30-4fc4-9667-c22387fd0f17" />
+<br>
 <img width="412" height="320" alt="image" src="https://github.com/user-attachments/assets/0fa33273-02ab-49ac-9205-7d95029bfb1b" />
